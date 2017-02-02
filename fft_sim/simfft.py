@@ -5,12 +5,13 @@ import numpy as np
 import glob
 from collections import deque
 from time import sleep
+from scipy.fftpack import fft, rfft
 
 import matplotlib.animation as animation
 import matplotlib.pyplot as plt 
 import timeit
 
-maxLen = 1000
+maxLen = 1024
 
 Fs = 100
 x = np.arange(maxLen)
@@ -43,7 +44,7 @@ import time
 t0 = time.time()
 
 for i in range(100):
-    freq_list = np.fft.rfft(s0)
+    freq_list = rfft(s0)
 
 t1 = time.time()
 total = t1-t0
@@ -52,7 +53,8 @@ print total
 t0 = time.time()
 
 for i in range(100):
-    freq_list = np.fft.rfft(s0)
+    #freq_list = np.fft.rfft(s0)
+    freq_list = rfft(s0)
 
 t1 = time.time()
 total = t1-t0

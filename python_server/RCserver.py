@@ -44,8 +44,9 @@ class MyUDPHandler(SocketServer.BaseRequestHandler):
         socket = self.request[1]
         #print "{} wrote:".format(self.client_address[0])
         #channel, Vmax, Vmin = unpack('cii', data)
+        #print data
         if len(data) != 4:
-            #print "data length: " , len(data)
+            print "data length: " , len(data)
             return
         V, = unpack('i', data)
         #print V

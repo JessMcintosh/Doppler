@@ -887,6 +887,13 @@ void streamDataHandler(UNIT * unit, uint32_t preTrigger, MODE mode)
 	int16_t * digiBuffers[PS3000A_MAX_DIGITAL_PORTS];
 	int16_t * appDigiBuffers[PS3000A_MAX_DIGITAL_PORTS];
 	
+	int channels = 2;
+	int *voltageBuffers = (int*) calloc(sampleCount * channels, sizeof(int));
+	//int *A_buf = (int*) calloc(sampleCount, sizeof(int));
+	//int *B_buf = (int*) calloc(sampleCount, sizeof(int));
+	//int *C_buf = (int*) calloc(sampleCount, sizeof(int));
+	//int *D_buf = (int*) calloc(sampleCount, sizeof(int));
+	
 	PICO_STATUS status;
 
 	PS3000A_TIME_UNITS timeUnits;
@@ -935,8 +942,14 @@ void streamDataHandler(UNIT * unit, uint32_t preTrigger, MODE mode)
 
 		downsampleRatio = 1;
 		timeUnits = PS3000A_US;
-		sampleInterval = 10;
-		//sampleInterval = 100;
+		//sampleInterval = 10;
+		//sampleInterval = 10;
+		//sampleInterval = 10;
+		
+		//sampleInterval = 8;
+		sampleInterval = 4;
+		//sampleInterval = 2;
+		//sampleInterval = 10;
 		ratioMode = PS3000A_RATIO_MODE_NONE;
 		postTrigger = 1000000;
 		autostop = TRUE;
@@ -996,25 +1009,25 @@ void streamDataHandler(UNIT * unit, uint32_t preTrigger, MODE mode)
 
 	printf("Streaming data...Press a key to stop\n");
 
-	if (mode == ANALOGUE)
-	{
-		fopen_s(&fp, StreamFile, "w");
+	//if (mode == ANALOGUE)
+	//{
+	//	fopen_s(&fp, StreamFile, "w");
 
-		if (fp != NULL)
-		{
-			printf(fp,"For each of the %d Channels, results shown are....\n",unit->channelCount);
-			printf(fp,"Maximum Aggregated value ADC Count & mV, Minimum Aggregated value ADC Count & mV\n\n");
+	//	if (fp != NULL)
+	//	{
+	//		printf(fp,"For each of the %d Channels, results shown are....\n",unit->channelCount);
+	//		printf(fp,"Maximum Aggregated value ADC Count & mV, Minimum Aggregated value ADC Count & mV\n\n");
 
-			for (i = 0; i < unit->channelCount; i++) 
-			{
-				if (unit->channelSettings[i].enabled) 
-				{
-					printf(fp,"Ch  Max ADC  Max mV  Min ADC  Min mV   ");
-				}
-			}
-			fprintf(fp, "\n");
-		}
-	}
+	//		for (i = 0; i < unit->channelCount; i++) 
+	//		{
+	//			if (unit->channelSettings[i].enabled) 
+	//			{
+	//				printf(fp,"Ch  Max ADC  Max mV  Min ADC  Min mV   ");
+	//			}
+	//		}
+	//		fprintf(fp, "\n");
+	//	}
+	//}
 
 	totalSamples = 0;
 
@@ -1046,99 +1059,92 @@ void streamDataHandler(UNIT * unit, uint32_t preTrigger, MODE mode)
 
 			totalSamples += g_sampleCount;
 
-			printf("\nCollected %li samples, index = %lu, Total: %d samples ", g_sampleCount, g_startIndex, totalSamples);
+			printf("Collected %li samples, index = %lu, Total: %d samples \n", g_sampleCount, g_startIndex, totalSamples);
 
 			if (g_trig)
 			{
 				printf("Trig. at index %lu", triggeredAt);	// show where trigger occurred
 			}
-
-			for (i = g_startIndex; i < (int32_t)(g_startIndex + g_sampleCount); i++) 
-			{
-				if (mode == ANALOGUE)
-				{
-					if(fp != NULL)
-					{
-							// THIS IS WHERE THE DATA IS EXTRACTED FROM THE BUFFERS
-							
-							int AVmax = adc_to_mv(appBuffers[0 * 2][i], unit->channelSettings[PS3000A_CHANNEL_A + 0].range, unit);
-							int AVmin = adc_to_mv(appBuffers[0 * 2 + 1][i], unit->channelSettings[PS3000A_CHANNEL_A + 0].range, unit);
-							int BVmax = adc_to_mv(appBuffers[1 * 2][i] * 10, unit->channelSettings[PS3000A_CHANNEL_A + 1].range, unit);
-							int BVmin = adc_to_mv(appBuffers[1 * 2 + 1][i], unit->channelSettings[PS3000A_CHANNEL_A + 1].range, unit);
-
-							int mixedValue = AVmax * BVmax / 1000;
-							//printf("ARaw: %+dmV, BRaw: %+dmV\n", appBuffers[0][i], appBuffers[2][i]);
-							//printf("AMax: %+dmV, AMin: %+dmV\n", AVmax, AVmin);
-							//printf("A: %+dmV, B: %+dmV\n", AVmax, BVmax);
-							//printf("Mixed: %d\n", mixedValue);
-							//char channel = (char)('A' + 0);
-
-							//printf("Ch%C: ", channel);
-							//printf("Max: %+dmV, Min: %+dmV\n", Vmax, Vmin);
-
-							//sprintf(buf, "Max: %+dmV, Min: %+dmV\n", Vmax, Vmin);
-							//sprintf(buf, "Mixed: %d\n", mixedValue);
-
-							//memcpy(buf, &channel, 1);
-							//memcpy(buf+4, &Vmax, sizeof(int));
-							//memcpy(buf+8, &Vmin, sizeof(int));
-							memcpy(buf, &mixedValue, sizeof(int));
-							//memcpy(buf, &BVmax, sizeof(int));
-							
-							if (sendto(s, buf, sizeof(int), 0, &si_other, slen)==-1){
-							//if (sendto(s, buf, 30, 0, &si_other, slen)==-1){
-								printf("Failed to send data");
-								close(s);
-								exit(1);
-							}
-							
-							//fprintf( fp, "%d\n", BVmax);
-							//fprintf( fp, "%d\n", mixedValue);
-
-							//fprintf(	fp,
-							//	"Ch%C  %d = %+dmV, %d = %+dmV   ",
-							//	(char)('A' + j),
-							//	appBuffers[j * 2][i],
-							//	adc_to_mv(appBuffers[j * 2][i], unit->channelSettings[PS3000A_CHANNEL_A + j].range, unit),
-							//	appBuffers[j * 2 + 1][i],
-							//	adc_to_mv(appBuffers[j * 2 + 1][i], unit->channelSettings[PS3000A_CHANNEL_A + j].range, unit));
-					}
-					else
-					{
-						printf("Cannot open the file %s for writing.\n", StreamFile);
-					}
-				}
-
-				if (mode == DIGITAL)
-				{
-					portValue = 0x00ff & appDigiBuffers[1][i];	// Mask Port 1 values to get lower 8 bits
-					portValue <<= 8;							// Shift by 8 bits to place in upper 8 bits of 16-bit word
-					portValue |= 0x00ff & appDigiBuffers[0][i]; // Mask Port 0 values to get lower 8 bits and apply bitwise inclusive OR to combine with Port 1 values  
-
-					printf("\nIndex=%04lu: Value = 0x%04X  =  ",i, portValue);
-
-					// Shift value (32768 - binary 1000 0000 0000 0000), AND with value to get 1 or 0 for channel
-					// Order will be D15 to D8, then D7 to D0
-					for (bit = 0; bit < 16; bit++)
-					{
-						printf( (0x8000 >> bit) & portValue? "1 " : "0 ");
-					}
-				}
-
-				if (mode == AGGREGATED)
-				{
-					portValueOR = 0x00ff & appDigiBuffers[2][i];
-					portValueOR <<= 8;
-					portValueOR |= 0x00ff & appDigiBuffers[0][i];
-
-					portValueAND = 0x00ff & appDigiBuffers[3][i];
-					portValueAND <<= 8;
-					portValueAND |= 0x00ff & appDigiBuffers[1][i];
-
-					printf("\nIndex=%04lu: Bitwise  OR of last %ld readings = 0x%04X ",i,  downsampleRatio, portValueOR);
-					printf("\nIndex=%04lu: Bitwise AND of last %ld readings = 0x%04X ",i,  downsampleRatio, portValueAND);
-				}
+			
+			for (i = g_startIndex; i < (int32_t)(g_startIndex + g_sampleCount); i++) {
+				voltageBuffers[i*channels] = adc_to_mv(appBuffers[0][i], unit->channelSettings[PS3000A_CHANNEL_A + 0].range, unit);
+				voltageBuffers[i*channels+1] = adc_to_mv(appBuffers[2][i], unit->channelSettings[PS3000A_CHANNEL_A + 1].range, unit);
+				//voltageBuffers[i*channels+2] = adc_to_mv(appBuffers[4][i], unit->channelSettings[PS3000A_CHANNEL_A + 2].range, unit);
 			}
+			//int packetsize = 1000, j = g_startIndex;	
+			int packetsize = 100, j = g_startIndex;	
+			for (; j <	(int32_t)(g_startIndex + g_sampleCount); j+=packetsize){
+				int diff = 100;
+				//printf("diff: %d\n", diff);
+				//printf("startindex: %d, j: %d, g_sampleCount: %d, end: %d\n", g_startIndex, j, g_sampleCount, (int32_t)(g_sampleCount + g_startIndex));
+				
+				if((g_startIndex+g_sampleCount) < j+packetsize){
+				   	diff = 100 - (j+packetsize - (g_startIndex+g_sampleCount));
+					//printf("diff: %d\n", diff);
+				}
+				int p;
+				for(p = 0; p < packetsize; p++){
+					//printf("%d\n", voltageBuffers[j*channels + p]);
+				}
+				if (sendto(s, &(voltageBuffers[j*channels]), diff*channels*sizeof(int), 0, &si_other, slen)==-1){
+					printf("Failed to send data, j = %d, g_startIndex = %d, diff = %d,  sampleCount = %d", j, g_startIndex, diff, g_sampleCount);
+					close(s);
+					exit(1);
+				}
+				
+			}
+			/*
+			for (i = g_startIndex; i < (int32_t)(g_startIndex + g_sampleCount); i++) {
+
+					// THIS IS WHERE THE DATA IS EXTRACTED FROM THE BUFFERS
+					
+					int AVmax = adc_to_mv(appBuffers[0 * 2][i], unit->channelSettings[PS3000A_CHANNEL_A + 0].range, unit);
+					int AVmin = adc_to_mv(appBuffers[0 * 2 + 1][i], unit->channelSettings[PS3000A_CHANNEL_A + 0].range, unit);
+					int BVmax = adc_to_mv(appBuffers[1 * 2][i] * 10, unit->channelSettings[PS3000A_CHANNEL_A + 1].range, unit);
+					int BVmin = adc_to_mv(appBuffers[1 * 2 + 1][i], unit->channelSettings[PS3000A_CHANNEL_A + 1].range, unit);
+
+					int mixedValue = AVmax * BVmax / 1000;
+					//printf("ARaw: %+dmV, BRaw: %+dmV\n", appBuffers[0][i], appBuffers[2][i]);
+					//printf("AMax: %+dmV, AMin: %+dmV\n", AVmax, AVmin);
+					//printf("A: %+dmV, B: %+dmV\n", AVmax, BVmax);
+					//printf("Mixed: %d\n", mixedValue);
+					//char channel = (char)('A' + 0);
+
+					//printf("Ch%C: ", channel);
+					//printf("Max: %+dmV, Min: %+dmV\n", Vmax, Vmin);
+
+					//sprintf(buf, "Max: %+dmV, Min: %+dmV\n", Vmax, Vmin);
+					//sprintf(buf, "Mixed: %d\n", mixedValue);
+					//sprintf(buf, "%d, %d\n", mixedValue, i);
+
+					//memcpy(buf, &channel, 1);
+					//memcpy(buf+4, &Vmax, sizeof(int));
+					//memcpy(buf+8, &Vmin, sizeof(int));
+					//memcpy(buf, &mixedValue, sizeof(int));
+					memcpy(buf, &AVmax, sizeof(int));
+					memcpy(buf+4, &BVmax, sizeof(int));
+					//memcpy(buf, &i, sizeof(int));
+					//memcpy(buf, &BVmax, sizeof(int));
+					
+					if (sendto(s, buf, 2*sizeof(int), 0, &si_other, slen)==-1){
+					//if (sendto(s, buf, 10, 0, &si_other, slen)==-1){
+						printf("Failed to send data");
+						close(s);
+						exit(1);
+					}
+					
+					//fprintf( fp, "%d\n", BVmax);
+					//fprintf( fp, "%d\n", mixedValue);
+
+					//fprintf(	fp,
+					//	"Ch%C  %d = %+dmV, %d = %+dmV   ",
+					//	(char)('A' + j),
+					//	appBuffers[j * 2][i],
+					//	adc_to_mv(appBuffers[j * 2][i], unit->channelSettings[PS3000A_CHANNEL_A + j].range, unit),
+					//	appBuffers[j * 2 + 1][i],
+					//	adc_to_mv(appBuffers[j * 2 + 1][i], unit->channelSettings[PS3000A_CHANNEL_A + j].range, unit));
+			}
+			*/
 		}
 	}
 
@@ -1646,7 +1652,8 @@ void setSignalGenerator(UNIT unit)
 
 		printf("F - SigGen Off\n\n");
 
-		ch = _getch();
+		//ch = _getch();
+		ch = '0';
 
 		if (ch >= '0' && ch <='9')
 		{
@@ -1746,8 +1753,10 @@ void setSignalGenerator(UNIT unit)
 		{
 			do 
 			{
-				printf("\nEnter frequency in Hz: (1 to 1000000)\n"); // Ask user to enter signal frequency;
-				scanf_s("%lf", &frequency);
+				//printf("\nEnter frequency in Hz: (1 to 1000000)\n"); // Ask user to enter signal frequency;
+				//scanf_s("%lf", &frequency);
+				printf("frequency set to 40KHz\n");
+				frequency = 40000;
 			} while (frequency <= 0 || frequency > 1000000);
 		}
 
@@ -1994,15 +2003,18 @@ void calcDoppler(UNIT *unit)
 {
 
 	// Turn off two channels
-	printf("Switching channels C and D off\n");
-	unit->channelSettings[2].enabled = FALSE;
-	unit->channelSettings[2].range = PS3000A_MAX_RANGES-1;
+	//setSignalGenerator(*unit);
+	printf("Switching channel D off\n");
 	unit->channelSettings[3].enabled = FALSE;
 	unit->channelSettings[4].range = PS3000A_MAX_RANGES-1;
 
 	// Set A to 10v, Set B to 50mV
 	unit->channelSettings[0].range = 9; // +- 10V
-	unit->channelSettings[1].range = 4; // 200mV
+	// For water
+	unit->channelSettings[1].range = 1; // 20mV
+	// For air
+	//unit->channelSettings[1].range = 4; // 200mV
+	unit->channelSettings[2].range = 4; // 200mV
 
 	struct tPwq pulseWidth;
 	struct tTriggerDirections directions;
